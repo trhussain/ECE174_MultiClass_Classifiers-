@@ -251,16 +251,37 @@ def mc_one_vs_one_classifier(labels: np.array,confidence,X_N_test_ones):
     sum = 0 
     label_sums =[sum+x for x in labels]
 
-def confusion_matrix(testY, classifier_labels):
-    error = 0 
+def confusion_matrix(testY, classifier_labels) -> int:
     #print(testY.T[5][0])
+    '''
+    Confusion Matrix calculation  
+    
+    
+    Parameters
+    ---------
+    trainY: np.array 
+        Y label training dataset 
+    classifier labels: array
+        the output of the classifier and what it labeled each index 
+        as   
+        
+        
+    Returns 
+    -------
+    err_perc: int
+        The percentage error  
+    ''' 
+        
+
+    
     info(testY,0)
     info(classifier_labels,0)
-    
+    error = 0 
+
     # Error Calculation 
     # -------------------------------------------
     c,r = np.shape(classifier_labels)
-    print(r)
+    # Ensure c is ranging over the correct value 
     for x in range(c):
         if testY[x] != classifier_labels[x]:
             error = error+1 
@@ -292,18 +313,17 @@ def main():
 
 
 # Binary one versus all classifier test - 9 versus all 
-    # --------------------------------------------------
+    # -------------------------------------------------
+    '''
     binary_class = 9
     trainY_bin = sign(trainY, binary_class)
 
     bin_weight = normal_eqn_solver(X_N_train_ones,trainY_bin)
     testY_bin = sign(testY,binary_class)
     bin_classifier_predictions, confidence = binary_classifier(bin_weight,X_N_test_ones)   
-    print(testY[0][:10])
-    print(testY_bin[:10])
-    print(bin_classifier_predictions[:10])
+
     confusion_matrix(testY_bin,bin_classifier_predictions)
-    
+    '''
     # --------------------------------------------------
 
 
@@ -311,19 +331,17 @@ def main():
     # --------------------------------------------------
     
     
-    ''' 
+    
     weight_list = []
     for x in range(10):
         trainY_bin = sign(trainY, x)
         weights = normal_eqn_solver(X_N_train_ones, trainY_bin)
         weight_list.append(weights)
-        
-        print(x)
+        print(x) # Indicates how many loops till completion 
     weight_matrix = np.hstack(weight_list)
-    info(weight_matrix,0)
     mc_classifier_predictions = mc_one_vs_all_classifier(trainY, weight_matrix, X_N_test_ones)
-    MC_error = confusion_matrix(testY, mc_classifier_predictions)
-    '''
+    MC_error = confusion_matrix(np.transpose(testY), np.transpose(mc_classifier_predictions))
+    
     # --------------------------------------------------
   
   
