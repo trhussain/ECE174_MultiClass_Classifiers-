@@ -10,6 +10,9 @@ from numpy.linalg import matrix_rank
 
 # used to find repeat values and indices 
 from collections import defaultdict
+
+
+
 mat = scipy.io.loadmat('mnist.mat')
 
 np.set_printoptions(threshold=100)  # Set threshold to infinity to print all elements
@@ -111,13 +114,10 @@ def zero_remover_norm(img_array: np.array) -> np.array:
     
     # Normalizes image data set 
     # Input explanation as to why this is necessary within lab report 
-    norm_nonzero_img = img_array_zero/255
+    trainX_norm_nonzero = img_array_zero/255
     
-    r,c = np.shape(norm_nonzero_img)
-    ones_column = np.ones((r,1))
-    trainX_norm_nonzero_ones = np.hstack((norm_nonzero_img,ones_column))
 
-    return trainX_norm_nonzero_ones, idx
+    return trainX_norm_nonzero, idx
 def sign(trainY: np.array, label_rqst: int) -> np.array:
     '''
     Binary classifier on trainY dataset, alters to 1 or -1 if index matches label_rqst
@@ -130,7 +130,7 @@ def sign(trainY: np.array, label_rqst: int) -> np.array:
     label_rqst: int
         requested label 
         
-        
+         
     Returns 
     -------
     trainY_bin: np.array
@@ -222,7 +222,9 @@ def normal_eqn_solver(trainX_norm_nonzero_ones: np.array, trainY: np.array, bin_
 
     trainY_bin = sign(trainY, bin_class)
 
-    weights = np.dot(np.linalg.pinv(trainX_norm_nonzero_ones) , trainY_bin)
+    #weights = np.linalg.pinv(trainX_norm_nonzero_ones) @ trainY_bin # see if necessary or can do np.dot(X,Y), resource consumption
+    weights = np.dot(np.linalg.pinv(trainX_norm_nonzero_ones),trainY_bin) # see if necessary or can do np.dot(X,Y), resource consumption
+
     return weights 
 
 
@@ -246,13 +248,12 @@ def binary_classifier(weights: np.array, X_N_test_ones: np.array) -> np.array:
         confidence level on each of the labels 
 
     ''' 
-    confidence = np.dot(X_N_test_ones, weights)
+    #confidence = X_N_test_ones @ weights # see if necessary or can do np.dot(X,Y), resource consumption
+    confidence = np.dot(X_N_test_ones, weights) # see if necessary or can do np.dot(X,Y), resource consumption
+
     classifier_labels = np.sign(confidence)
     return classifier_labels, confidence
-    #max_xy = np.where(max_ == a.max() )
-    #isualize(norm_nonzero_img, 5000)
 
-    #results = np.square(trainY-(np.dot(np.transpose(weights),norm_nonzero_img)))
 def one_v_all_weight_calcs(trainY: np.array, X_N_train_ones: np.array)->np.array:
     '''
     Calculates the weights for the one_v_all classifier
@@ -283,7 +284,7 @@ def one_v_all_weight_calcs(trainY: np.array, X_N_train_ones: np.array)->np.array
     return weight_matrix
 def mc_one_vs_all_classifier(trainY: np.array, weights: np.array, X_N_test_ones: np.array):
     '''
-    Multiclass classifier model built upon a one_vs_all weights 
+    Multiclass classifier model built upon one_vs_all weights 
     
     
     Parameters
@@ -300,7 +301,8 @@ def mc_one_vs_all_classifier(trainY: np.array, weights: np.array, X_N_test_ones:
         prediction label array of ingested image dataset 
     ''' 
     
-    confidence= np.dot(X_N_test_ones, weights)
+    #confidence= X_N_test_ones @ weights # see if necessary or can do np.dot(X,Y), resource consumption
+    confidence = np.dot(X_N_test_ones,weights) # see if necessary or can do np.dot(X,Y), resource consumption
 
 
     # Finding the indices of the maximum values in each row
@@ -404,11 +406,13 @@ def mc_one_vs_one_classifier(labels: np.array,confidence,X_N_test_ones, pairs):
     print(f'prediction values of first 10 elem : {prediction_vec[:10][0]}')          
     return prediction_vec
 
-def confusion_matrix(testY, classifier_labels) -> int:
-    #print(testY.T[5][0])
-    '''
-    Confusion Matrix calculation  
+def error_calc(testY, classifier_labels) -> int:
     
+############################### DEPRICATED FUNCTION ###############################
+                             # Kept for posterity sake 
+###################################################################################
+    '''
+    Error rate calculation     
     
     Parameters
     ---------
@@ -432,44 +436,113 @@ def confusion_matrix(testY, classifier_labels) -> int:
 
     # Error Calculation 
     # -------------------------------------------
-    c,r = np.shape(classifier_labels)
+    r,c = np.shape(classifier_labels)
     # Ensure c is ranging over the correct value 
-    for x in range(c):
+    for x in range(r):
         if testY[x] != classifier_labels[x]:
             error = error+1 
-    err_perc = error/c
-    print("Error Percent: " + str(err_perc) + " Error Norm: " + str(error))
+    err_perc = error/r
+    #print("Error Percent: " + str(err_perc) + " Error Norm: " + str(error))
     
     
-    return err_perc
     # -------------------------------------------
     
+    
+   
+    
+    return err_perc
+
+def bin_confusion(yTrain_bin, bin_predict):
+    
+    # True Positive, True Negative, False Positive, and False Negative var initializations
+                 
+    acc_data = [0,0,0,0]   
+    
+    tp, fp, tn, fn = 0,0,0,0
+    # test_pairs = [(1,1), (-1,-1), (1,-1), (-1, 1)]
+    #info(yTrain_bin[:50][0],1)
+    #info(bin_predict[:10][0],1)
+   
+    # r,c = np.shape(bin_predict)
+    r,c = np.shape(yTrain_bin)
+    #info(yTrain_bin,0)
+    predic_true = np.count_nonzero(bin_predict==1)
+    predic_false = np.count_nonzero(bin_predict==-1)
+    for idx, true_val in enumerate(yTrain_bin):
+        if true_val == 1:
+            if bin_predict[idx] == 1:
+                tp =tp + 1
+            else: 
+                fn = fn + 1
+        else: # true_val == -1 
+            if bin_predict[idx] == -1:
+                tn = tn+1 
+            else: # bin_predict[idx] = 1
+                fp = fp + 1 
+    
+    error = (fp+fn)/r
+    precision = tp/(tp+fp)
+    print(f'Error: {error} \nPrecision: {precision}')
+    print(f'True Positive Rate: {tp/predic_true} \nTrue Negative: {tn/predic_false}\nFalse Positive: {fp/predic_false}')
+    arr1 = yTrain_bin.reshape(c,r)
+    arr2 = bin_predict.reshape(c,r)
+
+    y_actu = pd.Series(arr1.flatten(), name='Actual')
+    y_pred = pd.Series(arr2.flatten(), name='Predicted')
+    df_conf = pd.crosstab(y_actu, y_pred, margins=True)
+    print(df_conf)
+    #df_perc = pd.crosstab(y_actu, y_pred, normalize = 'index')
+    
+    
+    
+    
+    
+    
+    #print(df_confusion)
+    return df_conf
     '''
+    # Old method but stored in case of use for future confusion matrix calculations 
+        # tp = np.logical_and(yTrain_bin, bin_predict)
+    for idx, pair in enumerate(test_pairs):
+        temp = (yTrain_bin == pair[0]) & (bin_predict == pair[1])
+        acc_data[idx] = np.sum(temp)
+    print(acc_data)
     
-    
-    conf_mat = np.zeros(4)
-    # 0 = TP 
-    # 1 = FP 
-    # 2 = FN 
-    # 3 = TN 
-    for y in range(c): 
-        if testY[y] == classifier_labels[y]:
-            conf_mat[0] = conf_mat[0] + 1
-        elif test[y] != classifier_labels[y]:
-            conf_mat[3] = conf_mat[0] + 1 
-    '''
-        
-    
+    # Worked but crashed too often 
     
 
+    
+        for idx in range(r):
+        if yTrain_bin[idx] == 1:
+            if yTrain_bin[idx] == 1:
+                acc_data[0] = acc_data[0] + 1
+            else:
+                acc_data[3] = acc_data[3] + 1
+        else:
+            if yTrain_bin[idx] == 1:
+                acc_data[3] = acc_data[3] + 1
+            else:
+                acc_data[2] = acc_data[2] + 1
+
+
+    '''
 def main():
 
-# Setup to compute the weighted matrix solution to the normal equation 
-    # --------------------------------------------------
+############################################################################################################
+########################### Data setup #####################################################################
+############################################################################################################    
+   # --------------------------------------------------
     trainX = mat['trainX']
     trainY = mat['trainY']
 
-    X_N_train_ones, rmved_c = zero_remover_norm(trainX)
+    X_N_train, rmved_c = zero_remover_norm(trainX)
+    
+    r,c = np.shape(X_N_train)
+    train_ones_column = np.ones((r,1))
+    X_N_train_ones = np.hstack((X_N_train,train_ones_column))
+
+    
+    
     # --------------------------------------------------
 
 # testX manipulation - normalizes, removes same 0 columns as trainX, and adds 1 column - should recognifugre to be 
@@ -478,19 +551,50 @@ def main():
     testY = mat['testY']
     X_N_test = np.delete(testX_normal, rmved_c, axis=1)
     r = 10000
-    ones_column = np.ones((r,1))
-    X_N_test_ones = np.hstack((X_N_test,ones_column))
+    test_ones_column = np.ones((r,1))
+    X_N_test_ones = np.hstack((X_N_test,test_ones_column))
     # X_N = Normalized, Zero Columns removed, and ones column tacked on the end 
     # --------------------------------------------------
+    
+    
+############################################################################################################
+########################### Randomized Feature Based Least Square Classifier Set Up ########################
+############################################################################################################
+   # --------------------------------------------------
+    W = np.random.normal(0,1,(717,1000)) # no .T like in lab doc 
+    b = np.random.normal(0,1,(1,1000))
+    
+    # Apply ones column last as to not alter 1's column
+    # Use normalized & 0's removed first 
+    X_train_rand = (X_N_train @ W) + b
+    
+    X_train_rand = 1/(1+np.exp(-1*X_train_rand))
+    #nlm_train = [X_train_rand, 1/(1+np.exp(-1*X_train_rand)),np.sin(X_train_rand), np.maximum(X_train_rand,0,X_train_rand)]
+    
+    
+    
+    X_test_rand = (X_N_test @ W) + b
+    #nlm_test = [X_test_rand, 1/(1+np.exp(-1*X_test_rand)),np.sin(X_test_rand), np.maximum(X_test_rand,0,X_test_rand)]
+    X_test_rand =  1/(1+np.exp(-1*X_test_rand))
+    # Add ones column to each index of nlm_train & nlm_test
+    #for idx in range(len(nlm_train)):
+    #    nlm_train[idx] = np.hstack((nlm_train[idx]),train_ones_column)
+    #    nlm_test[idx] = np.hstack((nlm_test[idx]),test_ones_column)
 
 
-# Binary classifier - N versus all - N = [0,1,2,4,5,6,7,8,9]
+    # Comment or uncomment following line to use feature mapping or not 
+    #X_N_train_ones = np.hstack(((X_train_rand),train_ones_column))
+    #X_N_test_ones = np.hstack(((X_test_rand),test_ones_column))
+
+    # --------------------------------------------------
+ 
+############################################################################################################
+########################### Binary Classifier - N Versus All ###############################################
+############################################################################################################
     # -------------------------------------------------
-    '''
     
-    
-    bin_error = []
-    
+
+    print('Once counter hits 10 program will have run through all 10 binary classifier \nConfusion Matrices & Errors for each classifier will output  each iteration')
     for bin_class in range(10):
     
         # Calculates weights 
@@ -501,12 +605,13 @@ def main():
         # Classifies index as bin_class or not bin_class 
         bin_classifier_predictions, confidence = binary_classifier(bin_weight,X_N_test_ones)   
 
-        # Stores error 
-        bin_error.append(confusion_matrix(testY_bin,bin_classifier_predictions))
+        # Error, Precision, & Confusion Matrix Calculations
+        print(f'Binary Classifier: {str(bin_class)}') 
+        bin_confusion(testY_bin,bin_classifier_predictions)
         
-    print(bin_error)
     
-    '''
+  
+    
     # --------------------------------------------------
 
 
@@ -514,31 +619,22 @@ def main():
     # --------------------------------------------------
     
     
-    
-    '''
-    
-    
     # Calculates weights
     weight_matrix = one_v_all_weight_calcs(trainY, X_N_train_ones)
     
     # Creates predictions 
     mc_classifier_predictions = mc_one_vs_all_classifier(trainY, weight_matrix, X_N_test_ones)
-    
+    info(mc_classifier_predictions,0)
     # Calculates Error 
-    one_v_all_error = confusion_matrix(np.transpose(testY), np.transpose(mc_classifier_predictions))
+    one_v_all_error = error_calc(np.transpose(testY), np.transpose(mc_classifier_predictions))
     
     print(one_v_all_error)
-    '''
+    
     # --------------------------------------------------
-  
+
   
 # Multi-class one versus one classifier 
-    '''
-    Thought process 
-    - Conduct a single one vs one classifier first, 0 vs 1 
-        - Data set up required -> extract 0 & 1's from trainX and trainY 
-    
-    '''
+
     # --------------------------------------------------
     print('Multi-class classifier - one versus one')
      
@@ -557,10 +653,12 @@ def main():
     x = np.reshape(pred_vec, (1,10000))
     
     # Calculate Error 
-    onevoneerror = confusion_matrix(np.transpose(testY), pred_vec)
+    onevoneerror = error_calc(np.transpose(testY), pred_vec)
 
 
     print(f'One V one Error: {onevoneerror}')
+    print(f'One V all Error: {one_v_all_error}')
+    #print(f'Bin Error: {bin_error}')
 
     
     # --------------------------------------------------
