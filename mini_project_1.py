@@ -8,12 +8,21 @@ from itertools import chain
 from numpy.linalg import inv
 from numpy.linalg import matrix_rank
 
-import mp_1_minimized
+# used to find repeat values and indices 
+from collections import defaultdict
 mat = scipy.io.loadmat('mnist.mat')
 
-#np.set_printoptions(threshold=np.inf)  # Set threshold to infinity to print all elements
-
-
+np.set_printoptions(threshold=100)  # Set threshold to infinity to print all elements
+def prediction_calc(arr):
+    
+    row,columns = np.shape(arr)
+    print(row)
+    print(columns)
+    res = np.sum(arr == arr.max(axis=1, keepdims=True), axis=1) > 1
+    prediction = np.zeros((10000,1))
+    for y in range(row):
+        np.put(prediction,[y][0],(np.argmax(arr[y][:])))
+    return prediction
 def visualize(img_array: np.array, index: int) -> None:
     '''
     Purpose: To visualize img data for manual verification of training, and fun 
@@ -207,7 +216,6 @@ def binary_classifier(weights: np.array, X_N_test_ones: np.array) -> np.array:
         confidence level on each of the labels 
 
     ''' 
-    
     confidence = np.dot(X_N_test_ones, weights)
     classifier_labels = np.sign(confidence)
     return classifier_labels, confidence
@@ -244,12 +252,30 @@ def mc_one_vs_all_classifier(trainY: np.array, weights: np.array, X_N_test_ones:
 
     return mc_ova_labels
 
-def mc_one_vs_one_classifier(labels: np.array,confidence,X_N_test_ones):
-    visualize(X_N_test_ones,0)
+def mc_one_vs_one_classifier(labels: np.array,confidence,X_N_test_ones, pairs):
     print('one v one called')
-    # need to process sum for first 9 indices, then 8, then 7 
-    sum = 0 
-    label_sums =[sum+x for x in labels]
+    r, c = np.shape(labels)
+    
+    tally = np.zeros((10000,10))
+    row_vote = np.zeros((10000,1))
+    
+    for row in range(r): # replace with r when running full classifier 
+        for label_val_index in range(c):
+            #print(f'Label val index: {label_val_index}')
+            print(row)
+            label_val_bin = labels[row][label_val_index] 
+            onevone_pair = pairs[label_val_index] # should be a specific pair [0,9]
+            if label_val_bin == 1:  
+                tally[row][onevone_pair[0]] =  tally[row][onevone_pair[0]] + 1 
+            elif label_val_bin == -1:
+                tally[row][onevone_pair[1]] =  tally[row][onevone_pair[1]] + 1 
+            else: 
+                print("ERROR IN LABEL BIN VECTOR")
+    print(tally[:10][:10])
+    prediction_vec = prediction_calc(tally)   
+    print(np.shape(prediction_vec))
+    print(f'prediction values of first 10 elem : {prediction_vec[:10][0]}')          
+    return prediction_vec
 
 def confusion_matrix(testY, classifier_labels) -> int:
     #print(testY.T[5][0])
@@ -287,8 +313,28 @@ def confusion_matrix(testY, classifier_labels) -> int:
             error = error+1 
     err_perc = error/c
     print("Error Percent: " + str(err_perc) + " Error Norm: " + str(error))
+    
+    
     return err_perc
     # -------------------------------------------
+    
+    '''
+    
+    
+    conf_mat = np.zeros(4)
+    # 0 = TP 
+    # 1 = FP 
+    # 2 = FN 
+    # 3 = TN 
+    for y in range(c): 
+        if testY[y] == classifier_labels[y]:
+            conf_mat[0] = conf_mat[0] + 1
+        elif test[y] != classifier_labels[y]:
+            conf_mat[3] = conf_mat[0] + 1 
+    '''
+        
+    
+    
 
 def main():
 
@@ -331,7 +377,7 @@ def main():
     # --------------------------------------------------
     
     
-    
+    '''
     weight_list = []
     for x in range(10):
         trainY_bin = sign(trainY, x)
@@ -341,7 +387,7 @@ def main():
     weight_matrix = np.hstack(weight_list)
     mc_classifier_predictions = mc_one_vs_all_classifier(trainY, weight_matrix, X_N_test_ones)
     MC_error = confusion_matrix(np.transpose(testY), np.transpose(mc_classifier_predictions))
-    
+    '''
     # --------------------------------------------------
   
   
@@ -354,40 +400,35 @@ def main():
     '''
     # --------------------------------------------------
     print('Multi-class classifier - one versus one')
-    ''' 
+    
     # Data preparation 
     pairs = []
+    print(testY[0][:10])
     for i in range(10):
         for j in range(i+1, 10):
-            if i!=j:
-                pairs.append([i,j])
-    print(pairs[0][0])
+            pairs.append([i,j])
+    print(pairs[0])
     print(len(pairs))
     OVO_weight_list = []
-    for x in range(len(pairs)-28):
+    #len(pairs)
+    for x in range(len(pairs)):
         v1,v2 = pairs[x][0],pairs[x][1] # replace with method that computes each possible combination 
         trainX_OVO, trainY_OVO = img_label_extractor(X_N_train_ones, trainY,v1,v2, trainX)
         trainY_OVO_bin = sign(trainY_OVO,v1) # v1 will always be +1 
         OVO_weight = normal_eqn_solver(trainX_OVO,trainY_OVO_bin)
         OVO_weight_list.append(OVO_weight)
-        
-        
-        print(trainY_OVO[:10])
         print(x)
-    info(OVO_weight_list,0)
+    OVO_weight_matrixhstack = np.hstack(OVO_weight_list)
     OVO_weight_matrix = np.array(OVO_weight_list, dtype='float32').T
-    info(OVO_weight_matrix,0)
-
+    
     labels, confidence = binary_classifier(OVO_weight_matrix,X_N_test_ones)
-    info(confidence,0)
-    print(confidence[:10][0])
-    print(labels[:10][0])
+  
+    pred_vec = mc_one_vs_one_classifier(labels,confidence, X_N_test_ones,pairs)
 
-    info(labels,0)
-    mc_one_vs_one_classifier(labels,confidence, X_N_test_ones)
-    '''
-    
-    
+    print(f'testY  Val: {testY[0][:10]}')
+    print(f'Prediction: {np.reshape(pred_vec, (1,10000))[0][:10]}')
+    x = np.reshape(pred_vec, (1,10000))
+    confusion_matrix(np.transpose(testY), pred_vec)
     
     #x = binary _classifier(OVO_weight, X_N_test_ones)
     #info(x,0)
