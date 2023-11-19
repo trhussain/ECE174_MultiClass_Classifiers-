@@ -256,7 +256,8 @@ def mc_one_vs_one_classifier(labels: np.array,confidence,X_N_test_ones, pairs):
     print('one v one called')
     r, c = np.shape(labels)
     
-    tally = np.zeros((10000,10))
+    tally = np.zeros((10000,10)) 
+    
     row_vote = np.zeros((10000,1))
     
     for row in range(r): # replace with r when running full classifier 
@@ -430,11 +431,7 @@ def main():
     x = np.reshape(pred_vec, (1,10000))
     confusion_matrix(np.transpose(testY), pred_vec)
     
-    #x = binary _classifier(OVO_weight, X_N_test_ones)
-    #info(x,0)
-    #print(trainY_OVO_bin[:100])
-    #print(x[:100])
-    #visualize(trainX,0)
+
     # --------------------------------------------------
 
     #results_bin = np.where(results >= 0, 1, -1).T
